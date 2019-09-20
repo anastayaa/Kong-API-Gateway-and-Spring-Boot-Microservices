@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: currency-conversion-service
+  labels:
+    app: currency-conversion-service
+spec:
+  ports:
+    - port: 8099
+      name: http
+  selector:
+    app: currency-conversion-service
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: currency-conversion-service-v1
+  labels:
+    version: v1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: currency-conversion-service
+        version: v1
+    spec:
+      containers:
+        - name: currency-conversion-service
+          image: anastayaa/currency-conversion-image
+          resources:
+            requests:
+              cpu: "100m"
+          imagePullPolicy: IfNotPresent #Always
+          ports:
+            - containerPort: 8099
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: currency-conversion-service-v2
+  labels:
+    version: v2
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: currency-conversion-service
+        version: v2
+    spec:
+      containers:
+        - name: currency-conversion-service
+          image: anastayaa/currency-conversion-image
+          resources:
+            requests:
+              cpu: "100m"
+          imagePullPolicy: IfNotPresent #Always
+          ports:
+            - containerPort: 8099

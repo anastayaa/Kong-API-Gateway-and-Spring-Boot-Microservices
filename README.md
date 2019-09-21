@@ -1,12 +1,11 @@
 # Kong API Gateway and Spring Boot Microservices
 ## Context
-Working with a microservices API gateway can greatly reduce coding efforts, make your applications far more efficient, and decrease
-errors all at that same time. An advantage of using microservices is that you don’t have to interact with a huge code base. 
-Microservices are small and flexible. You can choose precisely which bits of code you want to interact with and from where 
+Working with a microservices API gateway can greatly reduce coding efforts, make applications far more efficient, and decrease
+errors all at that same time. An advantage of using microservices is that we don’t have to interact with a huge code base. 
+Microservices are small and flexible. we can choose precisely which bits of code you want to interact with and from where 
 those bits come. It’s possible to mix and match bits of code as needed. 
 
-However, in a microservices architecture, each microservice exposes a set of (typically) fine-grained endpoints. This fact can impact the
-client-to-microservice communication.
+However, in a microservices architecture, each microservice exposes a set of (typically) fine-grained endpoints. This fact can impact the client-to-microservice communication.
 ### Direct client-to-microservice communication
 A possible approach is to use a direct client-to-microservice communication architecture. In this approach, a client app can make 
 requests directly to some of the microservices.
@@ -169,9 +168,70 @@ Kong provide a collection of plugins that accelerate development time:
 Kong Enterprise takes API management a step further and comes with all the tooling that we need to manage a full-blown
 infrastructure.
 
-![alt test](screens/communityvsentreprise.png)
+![altSetup Kong test](screens/communityvsentreprise.png)
 
-  
+## Getting Started
+### Pre-requise
+  * Operating system (Linux, Windows, MacOS...);
+  * Docker;
+  * Postgres or Cassandra DB.
+### Kong Setup
+#### 1.1 Create docker network
+First create docker network.
+```bash
+docker network create neoxia-net
+```
+#### 1.2 Initialize database
+Kong can interface with either Cassandra or Postgres. I this example we will use Cassandra DB.
+##### NB:
+The two main reasons why one would choose Cassandra as Kong's datastore are: 
+  - An ease to create a distributed setup (ideal for multi-region);
+  - Ease to scale
+```bash
+docker run -d --name neoxia-database \
+               --network=neoxia-net \
+               -p 9042:9042 \
+               cassandra:3
+```
+Then prepare the database for Kong.
+```bash
+docker run --rm \
+     --network=neoxia-net \
+     -e "KONG_DATABASE=cassandra" \
+     -e "KONG_CASSANDRA_KEYSPACE=neoxia" \
+     -e "KONG_CASSANDRA_CONTACT_POINTS=neoxia-database" \
+     kong:latest kong migrations bootstrap
+```
+#### 1.3 Initialize kong
+```bash
+docker run -d --name neoxia-container\
+     --network=neoxia-net \
+     -e "KONG_DATABASE=cassandra" \
+     -e "KONG_CASSANDRA_KEYSPACE=neoxia" \
+     -e "KONG_CASSANDRA_CONTACT_POINTS=neoxia-database" \
+     -e "KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl" \
+     -p 8000:8000 \
+     -p 8443:8443 \
+     -p 8001:8001 \
+     -p 8444:8444 \
+     kong:latest
+```
+After that, we have two running docker container, one for cassandra DB and another for kong instance.
+
+[alt test](screens/docker-containers-1.png)
+
+Check Kong Instance.
+```bash
+curl -i http://localhost:8001
+```
+### Setup API server routing using Spring boot microservices
+Clone this repository to your local machine.
+#### 2.1 Create the Component
+change location to Spring-Boot-Micro-Forex-Service folder, build a new image and run a new container.
+```bash
+cd pring-Boot-Micro-Forex-Service
+docker build -t forex-image .
+do
   
   
 

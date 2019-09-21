@@ -168,7 +168,8 @@ Kong provide a collection of plugins that accelerate development time:
 Kong Enterprise takes API management a step further and comes with all the tooling that we need to manage a full-blown
 infrastructure.
 
-![altSetup Kong test](screens/communityvsentreprise.png)
+![alt test](screens/communityvsentreprise.png)
+
 
 ## Getting Started
 ### Pre-requise
@@ -218,7 +219,7 @@ docker run -d --name neoxia-container\
 ```
 After that, we have two running docker container, one for cassandra DB and another for kong instance.
 
-[alt test](screens/docker-containers-1.png)
+![alt test](screens/docker-containers-1.png)
 
 Check Kong Instance.
 ```bash
@@ -231,8 +232,21 @@ change location to Spring-Boot-Micro-Forex-Service folder, build a new image and
 ```bash
 cd pring-Boot-Micro-Forex-Service
 docker build -t forex-image .
-do
-  
-  
+docker run --name forex-container --network=neoxia-net -p 8098:8098 forex-image
+```
+The server app is listned on port 8098 with endpoint /currency-exchange/from/EUR/to/INR:
+http://localhost:8098/currency-exchange/from/EUR/to/INR
 
-
+We can verify the connected containers to the neoxia-net docker network:
+```bash
+docker network inspect neoxia-net
+```
+#### 2.2  Declare the Component with Kong
+##### 3.2.1 Create the service
+Service refer to the upstream APIs and microservices that kong manages.
+```bash
+curl -i -X POST \
+  --url http://localhost:8001/services/ \
+  --data 'name=forex-service-v1' \
+  --data 'url=http://localhost:8098/currency-exchange/from/EUR/to/INR'
+```

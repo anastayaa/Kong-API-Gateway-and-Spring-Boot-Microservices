@@ -217,7 +217,7 @@ docker run -d --name neoxia-container\
      -p 8444:8444 \
      kong:latest
 ```
-After that, we have two running docker container, one for cassandra DB and another for kong instance.
+After that, we have two running docker containers, one for cassandra DB and another for kong instance.
 
 ![alt test](screens/docker-containers-1.png)
 
@@ -248,5 +248,155 @@ Service refer to the upstream APIs and microservices that kong manages.
 curl -i -X POST \
   --url http://localhost:8001/services/ \
   --data 'name=forex-service-v1' \
-  --data 'url=http://localhost:8098/currency-exchange/from/EUR/to/INR'
+  --data 'url=http://172.18.0.5:8098/currency-exchange/from/EUR/to/INR'
 ```
+###### NB:
+172.18.0.5 is the address of the component container. In this case forex-container.
+##### 3.2.2 Create the route
+One route can be associated with one service, and this later can have one to many route to an upstream.
+```bash
+curl -i -X POST \
+  --url http://localhost:8001/services/forex-service-v1/routes \
+  --data 'name=forex-route-v1' \
+  --data 'paths[]=/forex-v1'
+```
+Kong expose the created API at the port 8000. In this case we can visit the created route by:
+```bash
+curl curl http://localhost:8000/forex-v1
+```
+##### 3.2.3 Apply plugins to the service
+
+Before starting applying plugins to services or routes. We will use an open source UI that allow us to create services, routes, plugins ... This UI is named Konga!
+###### 3.2.3.1 Setting up konga UI
+Let's create an docker container for konga.
+```bash
+docker run -p 1337:1337 \
+             --network neoxia-net \
+             --name konga \
+             -e "NODE_ENV=development" \
+             pantsel/konga
+```
+Now Konga is exposed at 1337 port.
+First, we will connect konga with kong admin api.
+###### NB:
+172.18.0.3 is the kong container address
+
+![alt test](screens/konga-connection.png)
+
+###### 3.2.3.1 Add the Authentication plugin
+We can choose between a set of plugins to protect our services with an authentication layer.
+
+![alt test](screens/authentication.png)
+
+For example to apply key auth plugin with CLI we can use the following command:
+```bash
+curl -i -X POST \
+  --url http://localhost:8001/services/forex-service-v1/plugins/ \
+  --data 'name=key-auth'
+```
+This example create an key auth plugin applied to the forex-service-v1 service.
+
+To access the API we should create an consumer, and affect to it an api key.
+```bash
+curl -i -X POST \
+  --url http://localhost:8001/consumers/ \
+  --data "username=forex-consumer"
+```
+```bash
+curl -i -X POST \
+  --url http://localhost:8001/consumers/forex-consumer/key-auth/ \
+  --data 'key=123456'
+```
+###### 3.2.3.2 Add the security plugin
+With security plugins, we can apply ACL(Access Control List), CORS, IP restriction or Bot detection.
+
+![alt test](screens/securityPlugin.png)
+
+For example to apply ACL plugin with CLI we can use the following command:
+```bash
+curl -X POST http://localhost:8001/services/forex-service-v1/plugins \
+    --data "name=acl"  \
+    --data "config.whitelist=acl_group" \
+    --data "config.hide_groups_header=true"
+ ```
+Now we will associate a group to a consumer:
+```bash
+ curl -X POST http://localhost:8001/consumers/forex-consumer/acls \
+    --data "group=acl_group"
+ ```
+The api is protected with an api key and access control list.
+###### 3.2.3.3 Add the Traffic Control plugin
+With the traffic control plugin we can Manage, throttle and restrict inbound and outbound API traffic.
+ 
+![alt test](screens/traficControlPlugin.png)
+ 
+To apply Rate limiting plugin with CLI we can use the following command:
+```bash
+ curl -X POST http://localhost:8001/services/forex-service-v1/plugins \
+  --data "name=rate-limiting" \
+  --data "config.minute=2" \
+  --data "config.hour=100"
+```
+Now we can use the exposed api 2 times by minute and 100 times by hour.
+###### 3.2.3.4 Add the serverless plugin
+Kong can invoke serverless functions in combination with other plugins:
+
+![alt test](screens/serverlessPlugin.png)
+
+In this section we will call an AWS lambda function:
+###### Step by step guide
+ * First, let’s create an execution role called LambdaExecutor for our lambda function. In IAM Console create a new Role choosing the AWS Lambda service, there will be no policies as our function in this example will simply execute itself giving us back an hardcoded JSON as response without accessing other AWS resources.
+ * Now let’s create a user named KongInvoker, used by our Kong API gateway to invoke the function. In IAM Console create a new user, must be provided to it programmatic access via Access and Secret keys; then will attach existing policies directly particularly the AWSLambdaRole predefined. Once the user creation is confirmed, store Access Key and Secret Key in a safe place.
+ * Now we need to create the lambda function itself, will do so in N.Virginia Region (code us-east-1). In Lambda Management, create a new function Mylambda, there will be no blueprint as we are going to paste the code below; for the execution role let’s choose an existing role specifically LambdaExecutor created previously
+Use the inline code below to have a simple JSON response in return, note this is code for Python 3.6 interpreter.
+```bash
+import json
+ def lambda_handler(event, context):
+     """
+       If is_proxy_integration is set to true :
+       jsonbody='''{"statusCode": 200, "body": {"response": "yes"}}'''
+     """
+     jsonbody='''{"response": "yes"}'''
+     return json.loads(jsonbody)
+```
+ * Finally we setup a Service & Route in Kong and link it to the function just created.
+```bash
+curl -X POST http://kong:8001/services/forex-service-v1/plugins \
+    --data 'name=aws-lambda' \
+    --data-urlencode 'config.aws_key={KongInvoker user key}' \
+    --data-urlencode 'config.aws_secret={KongInvoker user secret}' \
+    --data 'config.aws_region=us-east-1' \
+    --data 'config.function_name=MyLambda'
+```
+###### 3.2.3.5 Add the Analytics & Monitoring plugin
+This plugin is used to Visualize, inspect and monitor APIs and microservices traffic.
+
+![alt test](screens/analyticsPlugin.png)
+
+We can apply promotheus plugin by using the following command:
+```bash
+curl -X POST http://localhost:8001/services/forex-service-v1/plugins \
+    --data "name=prometheus"
+```
+Kong expose prometheus metrics in:
+```bash
+http://localhost:8001/metrics
+```
+###### 3.2.3.5 Add the Logging plugin
+We can log requests and response data using the logging plugin.
+
+![alt test](screens/loggingPlugin.png)
+
+To apply file log plugin we will use the following command:
+```bash
+curl -X POST http://localhost:8001/services/forex-service-v1/plugins \
+    --data "name=file-log"  \
+    --data "config.path=/tmp/file.log"
+```
+This plugin will log HTTP request and response data in /tmp/file.log file.
+## Conclusion
+Kong is a scalable, open source API Layer (also known as an API Gateway, or API Middleware). Kong runs in front of any RESTful API and is extended through Plugins, which provide extra functionality and services beyond the core platform.
+
+![alt test](screens/kong-conclusion.png)
+
+Once Kong is running, every request being made to the API will hit Kong first, and then it will be proxied to the final API. In between requests and responses Kong will execute any plugin that we decided to install, empowering our APIs. Kong effectively becomes the entry point for every API request.

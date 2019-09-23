@@ -174,8 +174,7 @@ infrastructure.
 ## Getting Started
 ### Pre-requise
   * Operating system (Linux, Windows, MacOS...);
-  * Docker;
-  * Postgres or Cassandra DB.
+  * Docker.
 ### Kong Setup
 #### 1.1 Create docker network
 First create docker network.
@@ -242,7 +241,7 @@ We can verify the connected containers to the neoxia-net docker network:
 docker network inspect neoxia-net
 ```
 #### 2.2  Declare the Component with Kong
-##### 3.2.1 Create the service
+##### 2.2.1 Create the service
 Service refer to the upstream APIs and microservices that kong manages.
 ```bash
 curl -i -X POST \
@@ -252,7 +251,7 @@ curl -i -X POST \
 ```
 ###### NB:
 172.18.0.5 is the address of the component container. In this case forex-container.
-##### 3.2.2 Create the route
+##### 2.2.2 Create the route
 One route can be associated with one service, and this later can have one to many route to an upstream.
 ```bash
 curl -i -X POST \
@@ -264,10 +263,10 @@ Kong expose the created API at the port 8000. In this case we can visit the crea
 ```bash
 curl curl http://localhost:8000/forex-v1
 ```
-##### 3.2.3 Apply plugins to the service
+##### 2.2.3 Apply plugins to the service
 
 Before starting applying plugins to services or routes. We will use an open source UI that allow us to create services, routes, plugins ... This UI is named Konga!
-###### 3.2.3.1 Setting up konga UI
+###### 2.2.3.1 Setting up konga UI
 Let's create an docker container for konga.
 ```bash
 docker run -p 1337:1337 \
@@ -283,7 +282,7 @@ First, we will connect konga with kong admin api.
 
 ![alt test](screens/konga-connection.png)
 
-###### 3.2.3.1 Add the Authentication plugin
+###### 2.2.3.2 Add the Authentication plugin
 We can choose between a set of plugins to protect our services with an authentication layer.
 
 ![alt test](screens/authentication.png)
@@ -307,7 +306,7 @@ curl -i -X POST \
   --url http://localhost:8001/consumers/forex-consumer/key-auth/ \
   --data 'key=123456'
 ```
-###### 3.2.3.2 Add the security plugin
+###### 2.2.3.3 Add the security plugin
 With security plugins, we can apply ACL(Access Control List), CORS, IP restriction or Bot detection.
 
 ![alt test](screens/securityPlugin.png)
@@ -325,7 +324,7 @@ Now we will associate a group to a consumer:
     --data "group=acl_group"
  ```
 The api is protected with an api key and access control list.
-###### 3.2.3.3 Add the Traffic Control plugin
+###### 2.2.3.4 Add the Traffic Control plugin
 With the traffic control plugin we can Manage, throttle and restrict inbound and outbound API traffic.
  
 ![alt test](screens/traficControlPlugin.png)
@@ -338,7 +337,7 @@ To apply Rate limiting plugin with CLI we can use the following command:
   --data "config.hour=100"
 ```
 Now we can use the exposed api 2 times by minute and 100 times by hour.
-###### 3.2.3.4 Add the serverless plugin
+###### 2.2.3.5 Add the serverless plugin
 Kong can invoke serverless functions in combination with other plugins:
 
 ![alt test](screens/serverlessPlugin.png)
@@ -368,7 +367,7 @@ curl -X POST http://kong:8001/services/forex-service-v1/plugins \
     --data 'config.aws_region=us-east-1' \
     --data 'config.function_name=MyLambda'
 ```
-###### 3.2.3.5 Add the Analytics & Monitoring plugin
+###### 2.2.3.6 Add the Analytics & Monitoring plugin
 This plugin is used to Visualize, inspect and monitor APIs and microservices traffic.
 
 ![alt test](screens/analyticsPlugin.png)
@@ -382,7 +381,7 @@ Kong expose prometheus metrics in:
 ```bash
 http://localhost:8001/metrics
 ```
-###### 3.2.3.5 Add the Logging plugin
+###### 2.2.3.7 Add the Logging plugin
 We can log requests and response data using the logging plugin.
 
 ![alt test](screens/loggingPlugin.png)
